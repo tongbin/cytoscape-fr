@@ -1,5 +1,193 @@
 ;(function(){ 'use strict';
 
+var settings = {
+  autoArea: true,
+  area: 1,
+  gravity: 10,
+  speed: 0.1,
+  iterations: 40000
+};
+
+function FruchtermanReingold() {
+  var self = this;
+
+  this.init = function (graph, options) {
+    options = options || {};
+
+    // Properties
+    this.nodes = graph.nodes;
+    this.edges = graph.edges;
+    this.config = Object.assign({}, options, settings);
+    this.easing = options.easing;
+    this.duration = options.duration;
+
+    // State
+    this.running = false;
+  };
+
+  /**
+   * Single layout iteration.
+   */
+  this.atomicGo = function () {
+    if (!this.running || this.iterCount < 1) return false;
+
+    var nodes = this.nodes,
+        edges = this.edges,
+        i,
+        j,
+        n,
+        n2,
+        e,
+        xDist,
+        yDist,
+        dist,
+        repulsiveF,
+        nodesCount = nodes.length,
+        edgesCount = edges.length;
+
+    this.config.area = this.config.autoArea ? (nodesCount * nodesCount) : this.config.area;
+    this.iterCount--;
+    this.running = (this.iterCount > 0);
+
+    var maxDisplace = Math.sqrt(this.config.area) / 10,
+        k = Math.sqrt(this.config.area / (1 + nodesCount));
+
+    for (i = 0; i < nodesCount; i++) {
+      n = nodes[i];
+
+      // Init
+      if (!n.fr) {
+        n.fr_x = n.x;
+        n.fr_y = n.y;
+        n.fr = {
+          dx: 0,
+          dy: 0
+        };
+      }
+
+      for (j = 0; j < nodesCount; j++) {
+        n2 = nodes[j];
+
+        // Repulsion force
+        if (n.id != n2.id) {
+          xDist = n.fr_x - n2.fr_x;
+          yDist = n.fr_y - n2.fr_y;
+          dist = Math.sqrt(xDist * xDist + yDist * yDist) + 0.01;
+          // var dist = Math.sqrt(xDist * xDist + yDist * yDist) - n1.size - n2.size;
+
+          if (dist > 0) {
+            repulsiveF = k * k / dist;
+            n.fr.dx += xDist / dist * repulsiveF;
+            n.fr.dy += yDist / dist * repulsiveF;
+          }
+        }
+      }
+    }
+
+    var nSource,
+        nTarget,
+        attractiveF;
+
+    for (i = 0; i < edgesCount; i++) {
+      e = edges[i];
+
+      // Attraction force
+      nSource = e.source;
+      nTarget = e.target;
+
+      xDist = nSource.fr_x - nTarget.fr_x;
+      yDist = nSource.fr_y - nTarget.fr_y;
+      dist = Math.sqrt(xDist * xDist + yDist * yDist) + 0.01;
+      // dist = Math.sqrt(xDist * xDist + yDist * yDist) - nSource.size - nTarget.size;
+      attractiveF = dist * dist / k;
+
+      if (dist > 0) {
+        nSource.fr.dx -= xDist / dist * attractiveF;
+        nSource.fr.dy -= yDist / dist * attractiveF;
+        nTarget.fr.dx += xDist / dist * attractiveF;
+        nTarget.fr.dy += yDist / dist * attractiveF;
+      }
+    }
+
+    var d,
+        gf,
+        limitedDist;
+
+    for (i = 0; i < nodesCount; i++) {
+      n = nodes[i];
+
+      // Gravity
+      d = Math.sqrt(n.fr_x * n.fr_x + n.fr_y * n.fr_y);
+      gf = 0.01 * k * self.config.gravity * d;
+      n.fr.dx -= gf * n.fr_x / d;
+      n.fr.dy -= gf * n.fr_y / d;
+
+      // Speed
+      n.fr.dx *= self.config.speed;
+      n.fr.dy *= self.config.speed;
+
+      // Apply computed displacement
+      if (!n.fixed) {
+        xDist = n.fr.dx;
+        yDist = n.fr.dy;
+        dist = Math.sqrt(xDist * xDist + yDist * yDist);
+
+        if (dist > 0) {
+          limitedDist = Math.min(maxDisplace * self.config.speed, dist);
+          n.fr_x += xDist / dist * limitedDist;
+          n.fr_y += yDist / dist * limitedDist;
+        }
+      }
+    }
+
+    return this.running;
+  };
+
+  this.go = function () {
+    this.iterCount = this.config.iterations;
+
+    while (this.running) {
+      this.atomicGo();
+    }
+
+    this.stop();
+  };
+
+  this.run = function() {
+    if (this.running) return;
+
+    var nodes = this.nodes;
+
+    this.running = true;
+
+    // Init nodes
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].fr_x = nodes[i].x;
+      nodes[i].fr_y = nodes[i].y;
+      nodes[i].fr = {
+        dx: 0,
+        dy: 0
+      };
+    }
+    this.go();
+  };
+
+  this.stop = function() {
+    var nodes = this.nodes;
+    for (var i = 0; i < nodes.length; i++) {
+      delete nodes[i].fr;
+      // delete nodes[i].fr_x;
+      // delete nodes[i].fr_y;
+    }
+  };
+
+  this.kill = function() {
+    this.sigInst = null;
+    this.config = null;
+    this.easing = null;
+  };
+}
+
   // registers the extension on a cytoscape lib ref
   var register = function( cytoscape ){
 
@@ -7,6 +195,9 @@
 
     var defaults = {
       // define the default options for your layout here
+      animate: true,
+      animationDuration: 1000,
+      padding: 100,
       refreshInterval: 16, // in ms
       refreshIterations: 10, // iterations until thread sends an update
       fit: true,
@@ -14,8 +205,30 @@
       area: 1,
       gravity: 10,
       speed: 0.1,
-      iterations: 1000
+      iterations: 40000
     };
+
+    function rescale(layout, minLength) {
+      minLength = minLength || 50;
+      var nodes = layout.nodes;
+      var edges = layout.edges;
+      var nodesMap = layout.nodesMap;
+      var minDist = Infinity;
+      edges.forEach(function(e) {
+        var dist = Math.sqrt(
+          (e.source.fr_x - e.target.fr_x)*(e.source.fr_x - e.target.fr_x)+
+          (e.source.fr_y - e.target.fr_y)*(e.source.fr_y - e.target.fr_y)
+        );
+        if (minDist > dist) {
+          minDist = dist;
+        }
+      });
+      var scale = minLength / minDist;
+      nodes.forEach(function(n) {
+        n.fr_x *= scale;
+        n.fr_y *= scale;
+      });
+    }
 
     var extend = Object.assign || function( tgt ){
       for( var i = 1; i < arguments.length; i++ ){
@@ -29,6 +242,33 @@
 
     function Layout( options ){
       this.options = extend( {}, defaults, options );
+      var cy = options.cy;
+      var eles = options.eles;
+      var nodes = eles.nodes().map(function(n) {
+        return {
+          id: n.id(),
+          x: n.position().x,
+          y: n.position().y
+        };
+      });
+      var nodesMap = nodes.reduce(function(m, n){
+        m[n.id] = n;
+        return m;
+      }, {});
+      var edges = eles.edges().map(function(e){
+        return {
+          id: e.id(),
+          source: nodesMap[e.data('source')],
+          target: nodesMap[e.data('target')]
+        };
+      });
+      this.nodes = nodes;
+      this.edges = edges;
+      this.nodesMap = nodesMap;
+      this.fr = new FruchtermanReingold();
+      this.fr.init({
+        nodes: nodes, edges: edges
+      }, this.options);
     }
 
     Layout.prototype.run = function(){
@@ -36,133 +276,26 @@
       var options = this.options;
       var cy = options.cy;
       var eles = options.eles;
-      var nodes = eles.nodes();
+      this.fr.run();
 
-      var getRandomPos = function( i, ele ){
+      // rescale
+      rescale(layout);
+      var nextPos = function( i, ele ){
         return {
-          x: Math.round( Math.random() * 100 ),
-          y: Math.round( Math.random() * 100 )
+          x: layout.nodesMap[ele.id()].fr_x,
+          y: layout.nodesMap[ele.id()].fr_y
         };
       };
 
-      // dicrete/synchronous layouts can just use this helper and all the
-      // busywork is handled for you, including std opts:
-      // - fit
-      // - padding
-      // - animate
-      // - animationDuration
-      // - animationEasing
-      nodes.layoutPositions( layout, {
-        animate: true,
-        animationDuration: 1000,
-        fit: true,
-        padding: 100
-      }, getRandomPos );
+      eles.nodes().layoutPositions( layout, {
+        animate: options.animate,
+        animationDuration: options.animationDuration,
+        fit: options.fit,
+        padding: options.padding
+      }, nextPos );
 
-      return this; // or...
+      return this;
 
-      // continuous/asynchronous layouts need to do things manually:
-      // (this example uses a thread, but you could use a fabric to get even
-      // better performance if your algorithm allows for it)
-
-      var thread = this.thread = cytoscape.thread();
-      thread.require( getRandomPos, 'getRandomPos' );
-
-      // to indicate we've started
-      layout.trigger('layoutstart');
-
-      // for thread updates
-      var firstUpdate = true;
-      var id2pos = {};
-      var updateTimeout;
-
-      // update node positions
-      var update = function(){
-        nodes.positions(function( i, node ){
-          return id2pos[ node.id() ];
-        });
-
-        // maybe we fit each iteration
-        if( options.fit ){
-          cy.fit( options.padding );
-        }
-
-        if( firstUpdate ){
-          // indicate the initial positions have been set
-          layout.trigger('layoutready');
-          firstUpdate = false;
-        }
-      };
-
-      // update the node positions when notified from the thread but
-      // rate limit it a bit (don't want to overwhelm the main/ui thread)
-      thread.on('message', function( e ){
-        var nodeJsons = e.message;
-        nodeJsons.forEach(function( n ){ id2pos[n.data.id] = n.position; });
-
-        if( !updateTimeout ){
-          updateTimeout = setTimeout( function(){
-            update();
-            updateTimeout = null;
-          }, options.refreshInterval );
-        }
-      });
-
-      // we want to keep the json sent to threads slim and fast
-      var eleAsJson = function( ele ){
-        return {
-          data: {
-            id: ele.data('id'),
-            source: ele.data('source'),
-            target: ele.data('target'),
-            parent: ele.data('parent')
-          },
-          group: ele.group(),
-          position: ele.position()
-
-          // maybe add calculated data for the layout, like edge length or node mass
-        };
-      };
-
-      // data to pass to thread
-      var pass = {
-        eles: eles.map( eleAsJson ),
-        refreshIterations: options.refreshIterations,
-        autoArea: options.autoArea,
-        area: options.area,
-        gravity: options.gravity,
-        speed: options.speed,
-        iterations: options.iterations
-        // maybe some more options that matter to the calculations here ...
-      };
-
-      // then we calculate for a while to get the final positions
-      thread.pass( pass ).run(function( pass ){
-        var getRandomPos = _ref_('getRandomPos');
-        var broadcast = _ref_('broadcast');
-        var nodeJsons = pass.eles.filter(function(e){ return e.group === 'nodes'; });
-        var area = pass.area;
-        var gravity = pass.gravity;
-        var speed = pass.speed;
-        var iterations = pass.iterations;
-        // calculate for a while (you might use the edges here)
-        for( var i = 0; i < 100000; i++ ){
-          nodeJsons.forEach(function( nodeJson, j ){
-            nodeJson.position = getRandomPos( j, nodeJson );
-          });
-
-          if( i % pass.refreshIterations === 0 ){ // cheaper to not broadcast all the time
-
-            console.log('update node positions');
-            broadcast( nodeJsons ); // send new positions outside the thread
-          }
-        }
-      }).then(function(){
-        // to indicate we've finished
-        layout.trigger('layoutstop');
-      });
-
-      return this; // chaining
     };
 
     Layout.prototype.stop = function(){

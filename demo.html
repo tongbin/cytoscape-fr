@@ -81,7 +81,15 @@
 							{ data: { id: 'j', name: 'Jerry' } },
 							{ data: { id: 'e', name: 'Elaine' } },
 							{ data: { id: 'k', name: 'Kramer' } },
-							{ data: { id: 'g', name: 'George' } }
+							{ data: { id: 'g', name: 'George' } },
+							{ data: { id: 'j1', name: 'Jerry' } },
+							{ data: { id: 'e1', name: 'Elaine' } },
+							{ data: { id: 'k1', name: 'Kramer' } },
+							{ data: { id: 'g1', name: 'George' } },
+							{ data: { id: 'j2', name: 'Jerry' } },
+							{ data: { id: 'e2', name: 'Elaine' } },
+							{ data: { id: 'k2', name: 'Kramer' } },
+							{ data: { id: 'g2', name: 'George' } }
 						],
 						edges: [
 							{ data: { source: 'j', target: 'e' } },
@@ -92,7 +100,18 @@
 							{ data: { source: 'k', target: 'j' } },
 							{ data: { source: 'k', target: 'e' } },
 							{ data: { source: 'k', target: 'g' } },
-							{ data: { source: 'g', target: 'j' } }
+							{ data: { source: 'g', target: 'j' } },
+
+
+							{ data: { source: 'j1', target: 'e1' } },
+							{ data: { source: 'j1', target: 'k1' } },
+							{ data: { source: 'j1', target: 'g1' } },
+							{ data: { source: 'e1', target: 'j1' } },
+							{ data: { source: 'e1', target: 'k1' } },
+							{ data: { source: 'k1', target: 'j1' } },
+							{ data: { source: 'k1', target: 'e1' } },
+							{ data: { source: 'k1', target: 'g1' } },
+							{ data: { source: 'g1', target: 'j1' } }
 						]
 					},
 				});
