@@ -1,0 +1,24 @@
+{
+  "name": "cytoscape-fr",
+  "description": "a fruchterman-reingold layout",
+  "main": "cytoscape-fr.js",
+  "dependencies": {
+    "cytoscape": "^2.7.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cytoscape-fr.git"
+  },
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "keywords": [
+    "cytoscape",
+    "cyext"
+  ],
+  "license": "MIT"
+}
