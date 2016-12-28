@@ -76,7 +76,7 @@ function FruchtermanReingold() {
           // var dist = Math.sqrt(xDist * xDist + yDist * yDist) - n1.size - n2.size;
 
           if (dist > 0) {
-            repulsiveF = k * k / dist;
+            repulsiveF = k * k / dist * 200;
             n.fr.dx += xDist / dist * repulsiveF;
             n.fr.dy += yDist / dist * repulsiveF;
           }
@@ -99,7 +99,7 @@ function FruchtermanReingold() {
       yDist = nSource.fr_y - nTarget.fr_y;
       dist = Math.sqrt(xDist * xDist + yDist * yDist) + 0.01;
       // dist = Math.sqrt(xDist * xDist + yDist * yDist) - nSource.size - nTarget.size;
-      attractiveF = dist * dist / k;
+      attractiveF = dist * dist / k * 0.08;
 
       if (dist > 0) {
         nSource.fr.dx -= xDist / dist * attractiveF;
@@ -196,7 +196,7 @@ function FruchtermanReingold() {
     var defaults = {
       // define the default options for your layout here
       animate: true,
-      animationDuration: 1000,
+      animationDuration: 500,
       padding: 100,
       refreshInterval: 16, // in ms
       refreshIterations: 10, // iterations until thread sends an update
@@ -205,30 +205,8 @@ function FruchtermanReingold() {
       area: 1,
       gravity: 10,
       speed: 0.1,
-      iterations: 40000
+      iterations: 10000
     };
-
-    function rescale(layout, minLength) {
-      minLength = minLength || 50;
-      var nodes = layout.nodes;
-      var edges = layout.edges;
-      var nodesMap = layout.nodesMap;
-      var minDist = Infinity;
-      edges.forEach(function(e) {
-        var dist = Math.sqrt(
-          (e.source.fr_x - e.target.fr_x)*(e.source.fr_x - e.target.fr_x)+
-          (e.source.fr_y - e.target.fr_y)*(e.source.fr_y - e.target.fr_y)
-        );
-        if (minDist > dist) {
-          minDist = dist;
-        }
-      });
-      var scale = minLength / minDist;
-      nodes.forEach(function(n) {
-        n.fr_x *= scale;
-        n.fr_y *= scale;
-      });
-    }
 
     var extend = Object.assign || function( tgt ){
       for( var i = 1; i < arguments.length; i++ ){
@@ -244,11 +222,17 @@ function FruchtermanReingold() {
       this.options = extend( {}, defaults, options );
       var cy = options.cy;
       var eles = options.eles;
+      var layout = this;
+      this.vc = {
+        x: cy.renderer().containerBB.width / 2,
+        y: cy.renderer().containerBB.height / 2
+      };
       var nodes = eles.nodes().map(function(n) {
         return {
           id: n.id(),
-          x: n.position().x,
-          y: n.position().y
+          x: n.position().x - layout.vc.x,
+          y: n.position().y - layout.vc.y,
+          fixed: n.locked()
         };
       });
       var nodesMap = nodes.reduce(function(m, n){
@@ -266,6 +250,7 @@ function FruchtermanReingold() {
       this.edges = edges;
       this.nodesMap = nodesMap;
       this.fr = new FruchtermanReingold();
+
       this.fr.init({
         nodes: nodes, edges: edges
       }, this.options);
@@ -276,16 +261,25 @@ function FruchtermanReingold() {
       var options = this.options;
       var cy = options.cy;
       var eles = options.eles;
+      var cbb;
+      var hasFixed = true;
       this.fr.run();
-
-      // rescale
-      rescale(layout);
       var nextPos = function( i, ele ){
         return {
           x: layout.nodesMap[ele.id()].fr_x,
           y: layout.nodesMap[ele.id()].fr_y
         };
       };
+      // rescale
+
+      if (!options.fit) {
+        cbb = cy.renderer().containerBB;
+        // move the points into the view
+        layout.nodes.forEach(function(n){
+          n.fr_x = n.fr_x + layout.vc.x;
+          n.fr_y = n.fr_y + layout.vc.y;
+        });
+      }
 
       eles.nodes().layoutPositions( layout, {
         animate: options.animate,
@@ -301,10 +295,6 @@ function FruchtermanReingold() {
     Layout.prototype.stop = function(){
       // continuous/asynchronous layout may want to set a flag etc to let
       // run() know to stop
-
-      if( this.thread ){
-        this.thread.stop();
-      }
 
       this.trigger('layoutstop');
 

@@ -60,6 +60,13 @@
 								'content': 'data(name)'
 							}
 						},
+						{
+							selector: 'node:locked',
+							style: {
+								'content': 'data(name)',
+								'background-color': 'red'
+							}
+						},
 
 						{
 							selector: 'edge',
@@ -78,18 +85,22 @@
 
 					elements: {
 						nodes: [
-							{ data: { id: 'j', name: 'Jerry' } },
-							{ data: { id: 'e', name: 'Elaine' } },
-							{ data: { id: 'k', name: 'Kramer' } },
-							{ data: { id: 'g', name: 'George' } },
-							{ data: { id: 'j1', name: 'Jerry' } },
-							{ data: { id: 'e1', name: 'Elaine' } },
-							{ data: { id: 'k1', name: 'Kramer' } },
-							{ data: { id: 'g1', name: 'George' } },
-							{ data: { id: 'j2', name: 'Jerry' } },
-							{ data: { id: 'e2', name: 'Elaine' } },
-							{ data: { id: 'k2', name: 'Kramer' } },
-							{ data: { id: 'g2', name: 'George' } }
+							{ data: { id: 'j', name: 'a' } },
+							{ data: { id: 'e', name: 'b' } },
+							{ data: { id: 'k', name: 'c' } },
+							{ data: { id: 'g', name: 'd' } },
+							{ data: { id: 'j1', name: 'f' } },
+							{ data: { id: 'e1', name: 'g' } },
+							{ data: { id: 'k1', name: 'h' } },
+							{ data: { id: 'g1', name: 'i' } },
+							{ data: { id: 'j2', name: 'j' } },
+							{ data: { id: 'e2', name: 'k' } },
+							{ data: { id: 'k2', name: 'l' } },
+							{ data: { id: 'g2', name: 'm' } },
+							{ data: { id: 'j3', name: 'Jerry' } },
+							{ data: { id: 'e3', name: 'Elaine' } },
+							{ data: { id: 'k3', name: 'Kramer' } },
+							{ data: { id: 'g3', name: 'George' } }
 						],
 						edges: [
 							{ data: { source: 'j', target: 'e' } },
@@ -101,8 +112,6 @@
 							{ data: { source: 'k', target: 'e' } },
 							{ data: { source: 'k', target: 'g' } },
 							{ data: { source: 'g', target: 'j' } },
-
-
 							{ data: { source: 'j1', target: 'e1' } },
 							{ data: { source: 'j1', target: 'k1' } },
 							{ data: { source: 'j1', target: 'g1' } },
@@ -115,9 +124,15 @@
 						]
 					},
 				});
+				// cy.nodes().filter((i, n) => {
+				// 	return n.id().includes('j') || n.id().includes('k');
+				// }).lock();
 				window.start = function(){
 					cy.layout({
-						name: 'fr'
+						name: 'cose',
+						animate: true,
+						padding: 0,
+						fit: false
 					});
 				};
 
